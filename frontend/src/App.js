@@ -798,7 +798,9 @@ function ManagerDashboard() {
   const [filters, setFilters] = useState({
     developer_id: '',
     start_date: format(subDays(new Date(), 7), 'yyyy-MM-dd'),
-    end_date: format(new Date(), 'yyyy-MM-dd')
+    end_date: format(new Date(), 'yyyy-MM-dd'),
+    has_blockers: '',
+    reviewed_status: ''
   });
   const [feedbackForm, setFeedbackForm] = useState({ logId: '', text: '' });
 
