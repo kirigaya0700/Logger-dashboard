@@ -1,37 +1,30 @@
 import requests
 import unittest
-import uuid
-import json
 import random
 import string
 from datetime import datetime, date, timedelta
 
 class DevLogAPITester(unittest.TestCase):
-    base_url = "https://60e6f466-3bef-4be8-8d71-855eccd73665.preview.emergentagent.com/api"
-    token = None
-    user_id = None
-    manager_id = None
-    manager_token = None
-    log_id = None
-    dev_username = None
-    manager_username = None
+    """Test suite for DevLog API"""
     
     @classmethod
     def setUpClass(cls):
+        """Set up test data once for all tests"""
+        cls.base_url = "https://60e6f466-3bef-4be8-8d71-855eccd73665.preview.emergentagent.com/api"
+        
         # Generate unique usernames to avoid conflicts
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
         cls.dev_username = f"dev_test_{timestamp}_{random_suffix}"
         cls.manager_username = f"mgr_test_{timestamp}_{random_suffix}"
         
-        # Register a manager user first
-        cls.register_manager()
-        # Then register a developer user with the manager
-        cls.register_developer()
+        # Register users
+        cls.register_users()
     
     @classmethod
-    def register_manager(cls):
-        """Register a test manager user"""
+    def register_users(cls):
+        """Register test users"""
+        # Register manager
         manager_data = {
             "username": cls.manager_username,
             "email": f"{cls.manager_username}@example.com",
@@ -42,17 +35,14 @@ class DevLogAPITester(unittest.TestCase):
         response = requests.post(f"{cls.base_url}/auth/register", json=manager_data)
         if response.status_code != 200:
             print(f"❌ Manager registration failed: {response.text}")
-            return False
+            return
         
         data = response.json()
         cls.manager_token = data["access_token"]
         cls.manager_id = data["user"]["id"]
         print(f"✅ Manager registered: {cls.manager_username}")
-        return True
         
-    @classmethod
-    def register_developer(cls):
-        """Register a test developer user"""
+        # Register developer
         dev_data = {
             "username": cls.dev_username,
             "email": f"{cls.dev_username}@example.com",
@@ -64,52 +54,14 @@ class DevLogAPITester(unittest.TestCase):
         response = requests.post(f"{cls.base_url}/auth/register", json=dev_data)
         if response.status_code != 200:
             print(f"❌ Developer registration failed: {response.text}")
-            return False
+            return
         
         data = response.json()
         cls.token = data["access_token"]
         cls.user_id = data["user"]["id"]
+        cls.log_id = None
         print(f"✅ Developer registered: {cls.dev_username}")
-        return True
     
-    def setUp(self):
-        # Skip setup for individual tests as we're using class setup
-        pass
-    def register_manager(self):
-        """Register a test manager user"""
-        manager_data = {
-            "username": self.manager_username,
-            "email": f"{self.manager_username}@example.com",
-            "password": "Test123!",
-            "role": "manager"
-        }
-        
-        response = requests.post(f"{self.base_url}/auth/register", json=manager_data)
-        self.assertEqual(response.status_code, 200, f"Manager registration failed: {response.text}")
-        
-        data = response.json()
-        self.manager_token = data["access_token"]
-        self.manager_id = data["user"]["id"]
-        print(f"✅ Manager registered: {self.manager_username}")
-        
-    def register_developer(self):
-        """Register a test developer user"""
-        dev_data = {
-            "username": self.dev_username,
-            "email": f"{self.dev_username}@example.com",
-            "password": "Test123!",
-            "role": "developer",
-            "manager_id": self.manager_id
-        }
-        
-        response = requests.post(f"{self.base_url}/auth/register", json=dev_data)
-        self.assertEqual(response.status_code, 200, f"Developer registration failed: {response.text}")
-        
-        data = response.json()
-        self.token = data["access_token"]
-        self.user_id = data["user"]["id"]
-        print(f"✅ Developer registered: {self.dev_username}")
-        
     def test_01_login(self):
         """Test login functionality"""
         login_data = {
@@ -126,7 +78,7 @@ class DevLogAPITester(unittest.TestCase):
         self.assertEqual(data["user"]["username"], self.dev_username, "Username mismatch")
         
         print(f"✅ Login successful for: {self.dev_username}")
-        
+    
     def test_02_create_daily_log(self):
         """Test creating a daily log"""
         headers = {"Authorization": f"Bearer {self.token}"}
@@ -155,12 +107,12 @@ class DevLogAPITester(unittest.TestCase):
         
         data = response.json()
         self.__class__.log_id = data["id"]  # Store log_id at class level
-        self.assertIsNotNone(self.log_id, "Log ID not found in response")
+        self.assertIsNotNone(self.__class__.log_id, "Log ID not found in response")
         self.assertEqual(data["user_id"], self.user_id, "User ID mismatch")
         self.assertEqual(len(data["tasks"]), 2, "Tasks count mismatch")
         
-        print(f"✅ Daily log created with ID: {self.log_id}")
-        
+        print(f"✅ Daily log created with ID: {self.__class__.log_id}")
+    
     def test_03_get_logs(self):
         """Test retrieving daily logs"""
         headers = {"Authorization": f"Bearer {self.token}"}
@@ -175,21 +127,17 @@ class DevLogAPITester(unittest.TestCase):
         # Check if our created log is in the response
         log_found = False
         for log in data:
-            if log["id"] == self.log_id:
+            if log["id"] == self.__class__.log_id:
                 log_found = True
                 break
                 
         self.assertTrue(log_found, "Created log not found in response")
         print(f"✅ Retrieved {len(data)} logs successfully")
-        
+    
     def test_04_update_log(self):
         """Test updating a daily log"""
         headers = {"Authorization": f"Bearer {self.token}"}
         
-        # First, ensure we have a log to update
-        if not self.log_id:
-            self.test_02_create_daily_log()
-            
         update_data = {
             "date": date.today().isoformat(),
             "tasks": [
@@ -209,16 +157,16 @@ class DevLogAPITester(unittest.TestCase):
             "blockers": "Updated blockers"
         }
         
-        response = requests.put(f"{self.base_url}/logs/{self.log_id}", json=update_data, headers=headers)
+        response = requests.put(f"{self.base_url}/logs/{self.__class__.log_id}", json=update_data, headers=headers)
         self.assertEqual(response.status_code, 200, f"Update log failed: {response.text}")
         
         data = response.json()
-        self.assertEqual(data["id"], self.log_id, "Log ID mismatch")
+        self.assertEqual(data["id"], self.__class__.log_id, "Log ID mismatch")
         self.assertEqual(data["mood"], 5, "Mood not updated")
         self.assertEqual(data["total_time"], 5.0, "Total time not updated")
         
-        print(f"✅ Log updated successfully: {self.log_id}")
-        
+        print(f"✅ Log updated successfully: {self.__class__.log_id}")
+    
     def test_05_manager_get_team_logs(self):
         """Test manager retrieving team logs"""
         headers = {"Authorization": f"Bearer {self.manager_token}"}
@@ -238,7 +186,7 @@ class DevLogAPITester(unittest.TestCase):
                 
         self.assertTrue(dev_log_found, "Developer's log not found in team logs")
         print(f"✅ Manager retrieved team logs successfully")
-        
+    
     def test_06_manager_get_developers(self):
         """Test manager retrieving team developers"""
         headers = {"Authorization": f"Bearer {self.manager_token}"}
@@ -258,17 +206,13 @@ class DevLogAPITester(unittest.TestCase):
                 
         self.assertTrue(dev_found, "Developer not found in team developers")
         print(f"✅ Manager retrieved team developers successfully")
-        
+    
     def test_07_manager_add_feedback(self):
         """Test manager adding feedback to a log"""
         headers = {"Authorization": f"Bearer {self.manager_token}"}
         
-        # First, ensure we have a log to add feedback to
-        if not self.log_id:
-            self.test_02_create_daily_log()
-            
         feedback_data = {
-            "log_id": self.log_id,
+            "log_id": self.__class__.log_id,
             "feedback_text": "Great work on the tasks! Keep it up."
         }
         
@@ -276,11 +220,11 @@ class DevLogAPITester(unittest.TestCase):
         self.assertEqual(response.status_code, 200, f"Add feedback failed: {response.text}")
         
         data = response.json()
-        self.assertEqual(data["log_id"], self.log_id, "Log ID mismatch")
+        self.assertEqual(data["log_id"], self.__class__.log_id, "Log ID mismatch")
         self.assertEqual(data["manager_id"], self.manager_id, "Manager ID mismatch")
         
         print(f"✅ Manager added feedback successfully")
-        
+    
     def test_08_get_notifications(self):
         """Test retrieving notifications"""
         headers = {"Authorization": f"Bearer {self.token}"}
@@ -295,7 +239,7 @@ class DevLogAPITester(unittest.TestCase):
         self.assertGreaterEqual(len(data), 1, "No notifications returned")
         
         print(f"✅ Retrieved {len(data)} notifications successfully")
-        
+    
     def test_09_mark_notification_read(self):
         """Test marking a notification as read"""
         headers = {"Authorization": f"Bearer {self.token}"}
@@ -326,7 +270,8 @@ class DevLogAPITester(unittest.TestCase):
             print(f"✅ Notification marked as read successfully")
         else:
             print("⚠️ No notifications to mark as read")
-            
+            self.skipTest("No notifications available to test")
+    
     def test_10_get_productivity_data(self):
         """Test retrieving productivity data"""
         headers = {"Authorization": f"Bearer {self.token}"}
@@ -339,7 +284,7 @@ class DevLogAPITester(unittest.TestCase):
         self.assertEqual(len(data), 30, "Expected 30 days of data")
         
         print(f"✅ Retrieved productivity data successfully")
-        
+    
     def test_11_export_data(self):
         """Test exporting data as CSV"""
         headers = {"Authorization": f"Bearer {self.token}"}
@@ -359,42 +304,9 @@ class DevLogAPITester(unittest.TestCase):
             print(f"✅ Exported data successfully")
         elif response.status_code == 404:
             print("⚠️ No data to export in date range")
+            self.skipTest("No data available in date range")
         else:
             self.fail(f"Export data failed with status {response.status_code}: {response.text}")
 
-def run_tests():
-    # Create a test suite
-    suite = unittest.TestSuite()
-    
-    # Add tests in order
-    suite.addTest(DevLogAPITester('test_01_login'))
-    suite.addTest(DevLogAPITester('test_02_create_daily_log'))
-    suite.addTest(DevLogAPITester('test_03_get_logs'))
-    suite.addTest(DevLogAPITester('test_04_update_log'))
-    suite.addTest(DevLogAPITester('test_05_manager_get_team_logs'))
-    suite.addTest(DevLogAPITester('test_06_manager_get_developers'))
-    suite.addTest(DevLogAPITester('test_07_manager_add_feedback'))
-    suite.addTest(DevLogAPITester('test_08_get_notifications'))
-    suite.addTest(DevLogAPITester('test_09_mark_notification_read'))
-    suite.addTest(DevLogAPITester('test_10_get_productivity_data'))
-    suite.addTest(DevLogAPITester('test_11_export_data'))
-    
-    # Run the tests
-    runner = unittest.TextTestRunner(verbosity=2)
-    result = runner.run(suite)
-    
-    # Print summary
-    print("\n=== TEST SUMMARY ===")
-    print(f"Tests run: {result.testsRun}")
-    print(f"Failures: {len(result.failures)}")
-    print(f"Errors: {len(result.errors)}")
-    
-    if result.wasSuccessful():
-        print("✅ All API tests passed!")
-    else:
-        print("❌ Some API tests failed!")
-        
-    return result.wasSuccessful()
-
 if __name__ == "__main__":
-    run_tests()
+    unittest.main(verbosity=2)
