@@ -299,15 +299,18 @@ frontend:
 
   - task: "Role-based Authentication Routing"
     implemented: true
-    working: false
+    working: true
     file: "App.js"
-    stuck_count: 1
+    stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "main"
         comment: "Issue identified: When managers log in, they see developer dashboard instead of manager dashboard. Backend returns correct roles, but frontend routing is not working properly. Need to debug authentication flow and role-based navigation."
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive testing of the role-based authentication and routing shows that it is actually working correctly. When managers log in, they are correctly redirected to the manager dashboard (/manager route) and when developers log in, they are correctly redirected to the developer dashboard (/developer route). The role badge in the navigation bar also correctly displays 'manager' or 'developer' based on the user's role. The issue reported earlier appears to have been resolved or was intermittent. Console logs confirm that user roles are being correctly set and used for routing."
 
 metadata:
   created_by: "main_agent"
