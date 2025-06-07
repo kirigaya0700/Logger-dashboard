@@ -231,6 +231,7 @@ async def create_daily_log(log_data: DailyLogCreate, current_user: User = Depend
     if existing_log:
         raise HTTPException(status_code=400, detail="Log already exists for this date")
     
+    # Create user
     daily_log = DailyLog(
         user_id=current_user.id,
         date=log_data.date,
@@ -240,7 +241,11 @@ async def create_daily_log(log_data: DailyLogCreate, current_user: User = Depend
         blockers=log_data.blockers
     )
     
-    await db.daily_logs.insert_one(daily_log.dict())
+    # Convert date to string for MongoDB storage
+    log_dict = daily_log.dict()
+    log_dict["date"] = log_data.date.isoformat()
+    
+    await db.daily_logs.insert_one(log_dict)
     
     # Notify manager if user has one
     if current_user.manager_id:
