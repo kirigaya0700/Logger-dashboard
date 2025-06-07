@@ -57,6 +57,7 @@ function useAuth() {
 function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -67,44 +68,55 @@ function AuthProvider({ children }) {
   }, [token]);
 
   const fetchUserData = async () => {
+    setLoading(true);
     try {
-      // Try to get notifications first to validate the token
-      const response = await axios.get(`${API}/notifications`);
+      // First try to get user data from localStorage
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
       console.log('Loading user data from localStorage:', userData);
       
-      // Ensure we have valid user data with a role
-      if (userData && userData.role) {
+      // If we have valid user data, set it immediately
+      if (userData && userData.role && userData.id) {
         setUser(userData);
         console.log('User role set to:', userData.role);
-      } else {
-        console.error('Invalid user data in localStorage:', userData);
+      }
+      
+      // Then validate token by making a request to notifications
+      const response = await axios.get(`${API}/notifications`);
+      
+      // If the request succeeds and we don't have user data, something is wrong
+      if (!userData || !userData.role || !userData.id) {
+        console.error('Token is valid but user data is missing from localStorage:', userData);
         logout();
       }
     } catch (error) {
       console.error('Token validation failed:', error);
       logout();
+    } finally {
+      setLoading(false);
     }
   };
 
   const login = (tokenData) => {
+    console.log('Login called with tokenData:', tokenData);
     setToken(tokenData.access_token);
     setUser(tokenData.user);
     localStorage.setItem('token', tokenData.access_token);
     localStorage.setItem('user', JSON.stringify(tokenData.user));
     axios.defaults.headers.common['Authorization'] = `Bearer ${tokenData.access_token}`;
+    console.log('User set after login:', tokenData.user);
   };
 
   const logout = () => {
     setToken(null);
     setUser(null);
+    setLoading(false);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     delete axios.defaults.headers.common['Authorization'];
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!token }}>
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!token && !!user, loading }}>
       {children}
     </AuthContext.Provider>
   );
