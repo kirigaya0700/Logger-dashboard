@@ -378,6 +378,11 @@ async def get_notifications(current_user: User = Depends(get_current_user)):
 
 @api_router.put("/notifications/{notification_id}/read")
 async def mark_notification_read(notification_id: str, current_user: User = Depends(get_current_user)):
+    # First check if the notification belongs to the current user
+    notification = await db.notifications.find_one({"id": notification_id})
+    if not notification or notification["user_id"] != current_user.id:
+        raise HTTPException(status_code=404, detail="Notification not found")
+        
     await db.notifications.update_one(
         {"id": notification_id, "user_id": current_user.id},
         {"$set": {"read": True}}
