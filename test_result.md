@@ -297,6 +297,18 @@ frontend:
         agent: "main"
         comment: "CSV export for individual and team productivity data"
 
+  - task: "Role-based Authentication Routing"
+    implemented: true
+    working: false
+    file: "App.js"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "main"
+        comment: "Issue identified: When managers log in, they see developer dashboard instead of manager dashboard. Backend returns correct roles, but frontend routing is not working properly. Need to debug authentication flow and role-based navigation."
+
 metadata:
   created_by: "main_agent"
   version: "1.0"
