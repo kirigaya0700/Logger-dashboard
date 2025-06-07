@@ -406,7 +406,7 @@ async def get_productivity_data(current_user: User = Depends(get_current_user), 
     return productivity_data
 
 @api_router.get("/analytics/export")
-async def export_productivity_data(current_user: User = Depends(get_current_user), start_date: str, end_date: str):
+async def export_productivity_data(start_date: str, end_date: str, current_user: User = Depends(get_current_user)):
     query = {
         "user_id": current_user.id,
         "date": {"$gte": start_date, "$lte": end_date}
