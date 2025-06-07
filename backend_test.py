@@ -2,29 +2,79 @@ import requests
 import unittest
 import uuid
 import json
+import random
+import string
 from datetime import datetime, date, timedelta
 
 class DevLogAPITester(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(DevLogAPITester, self).__init__(*args, **kwargs)
-        self.base_url = "https://60e6f466-3bef-4be8-8d71-855eccd73665.preview.emergentagent.com/api"
-        self.token = None
-        self.user_id = None
-        self.manager_id = None
-        self.manager_token = None
-        self.log_id = None
-        
+    base_url = "https://60e6f466-3bef-4be8-8d71-855eccd73665.preview.emergentagent.com/api"
+    token = None
+    user_id = None
+    manager_id = None
+    manager_token = None
+    log_id = None
+    dev_username = None
+    manager_username = None
+    
+    @classmethod
+    def setUpClass(cls):
         # Generate unique usernames to avoid conflicts
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        self.dev_username = f"dev_test_{timestamp}"
-        self.manager_username = f"mgr_test_{timestamp}"
+        random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+        cls.dev_username = f"dev_test_{timestamp}_{random_suffix}"
+        cls.manager_username = f"mgr_test_{timestamp}_{random_suffix}"
         
-    def setUp(self):
         # Register a manager user first
-        self.register_manager()
+        cls.register_manager()
         # Then register a developer user with the manager
-        self.register_developer()
+        cls.register_developer()
+    
+    @classmethod
+    def register_manager(cls):
+        """Register a test manager user"""
+        manager_data = {
+            "username": cls.manager_username,
+            "email": f"{cls.manager_username}@example.com",
+            "password": "Test123!",
+            "role": "manager"
+        }
         
+        response = requests.post(f"{cls.base_url}/auth/register", json=manager_data)
+        if response.status_code != 200:
+            print(f"❌ Manager registration failed: {response.text}")
+            return False
+        
+        data = response.json()
+        cls.manager_token = data["access_token"]
+        cls.manager_id = data["user"]["id"]
+        print(f"✅ Manager registered: {cls.manager_username}")
+        return True
+        
+    @classmethod
+    def register_developer(cls):
+        """Register a test developer user"""
+        dev_data = {
+            "username": cls.dev_username,
+            "email": f"{cls.dev_username}@example.com",
+            "password": "Test123!",
+            "role": "developer",
+            "manager_id": cls.manager_id
+        }
+        
+        response = requests.post(f"{cls.base_url}/auth/register", json=dev_data)
+        if response.status_code != 200:
+            print(f"❌ Developer registration failed: {response.text}")
+            return False
+        
+        data = response.json()
+        cls.token = data["access_token"]
+        cls.user_id = data["user"]["id"]
+        print(f"✅ Developer registered: {cls.dev_username}")
+        return True
+    
+    def setUp(self):
+        # Skip setup for individual tests as we're using class setup
+        pass
     def register_manager(self):
         """Register a test manager user"""
         manager_data = {
