@@ -1,0 +1,350 @@
+import requests
+import unittest
+import uuid
+import json
+from datetime import datetime, date, timedelta
+
+class DevLogAPITester(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super(DevLogAPITester, self).__init__(*args, **kwargs)
+        self.base_url = "https://60e6f466-3bef-4be8-8d71-855eccd73665.preview.emergentagent.com/api"
+        self.token = None
+        self.user_id = None
+        self.manager_id = None
+        self.manager_token = None
+        self.log_id = None
+        
+        # Generate unique usernames to avoid conflicts
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        self.dev_username = f"dev_test_{timestamp}"
+        self.manager_username = f"mgr_test_{timestamp}"
+        
+    def setUp(self):
+        # Register a manager user first
+        self.register_manager()
+        # Then register a developer user with the manager
+        self.register_developer()
+        
+    def register_manager(self):
+        """Register a test manager user"""
+        manager_data = {
+            "username": self.manager_username,
+            "email": f"{self.manager_username}@example.com",
+            "password": "Test123!",
+            "role": "manager"
+        }
+        
+        response = requests.post(f"{self.base_url}/auth/register", json=manager_data)
+        self.assertEqual(response.status_code, 200, f"Manager registration failed: {response.text}")
+        
+        data = response.json()
+        self.manager_token = data["access_token"]
+        self.manager_id = data["user"]["id"]
+        print(f"✅ Manager registered: {self.manager_username}")
+        
+    def register_developer(self):
+        """Register a test developer user"""
+        dev_data = {
+            "username": self.dev_username,
+            "email": f"{self.dev_username}@example.com",
+            "password": "Test123!",
+            "role": "developer",
+            "manager_id": self.manager_id
+        }
+        
+        response = requests.post(f"{self.base_url}/auth/register", json=dev_data)
+        self.assertEqual(response.status_code, 200, f"Developer registration failed: {response.text}")
+        
+        data = response.json()
+        self.token = data["access_token"]
+        self.user_id = data["user"]["id"]
+        print(f"✅ Developer registered: {self.dev_username}")
+        
+    def test_01_login(self):
+        """Test login functionality"""
+        login_data = {
+            "username": self.dev_username,
+            "password": "Test123!"
+        }
+        
+        response = requests.post(f"{self.base_url}/auth/login", json=login_data)
+        self.assertEqual(response.status_code, 200, f"Login failed: {response.text}")
+        
+        data = response.json()
+        self.assertIn("access_token", data, "Token not found in response")
+        self.assertIn("user", data, "User data not found in response")
+        self.assertEqual(data["user"]["username"], self.dev_username, "Username mismatch")
+        
+        print(f"✅ Login successful for: {self.dev_username}")
+        
+    def test_02_create_daily_log(self):
+        """Test creating a daily log"""
+        headers = {"Authorization": f"Bearer {self.token}"}
+        
+        log_data = {
+            "date": date.today().isoformat(),
+            "tasks": [
+                {
+                    "description": "Task 1 - Testing API",
+                    "time_spent": 2.5,
+                    "completed": True
+                },
+                {
+                    "description": "Task 2 - Writing documentation",
+                    "time_spent": 1.5,
+                    "completed": False
+                }
+            ],
+            "total_time": 4.0,
+            "mood": 4,
+            "blockers": "None at the moment"
+        }
+        
+        response = requests.post(f"{self.base_url}/logs", json=log_data, headers=headers)
+        self.assertEqual(response.status_code, 200, f"Create log failed: {response.text}")
+        
+        data = response.json()
+        self.log_id = data["id"]
+        self.assertIsNotNone(self.log_id, "Log ID not found in response")
+        self.assertEqual(data["user_id"], self.user_id, "User ID mismatch")
+        self.assertEqual(len(data["tasks"]), 2, "Tasks count mismatch")
+        
+        print(f"✅ Daily log created with ID: {self.log_id}")
+        
+    def test_03_get_logs(self):
+        """Test retrieving daily logs"""
+        headers = {"Authorization": f"Bearer {self.token}"}
+        
+        response = requests.get(f"{self.base_url}/logs", headers=headers)
+        self.assertEqual(response.status_code, 200, f"Get logs failed: {response.text}")
+        
+        data = response.json()
+        self.assertIsInstance(data, list, "Response is not a list")
+        self.assertGreaterEqual(len(data), 1, "No logs returned")
+        
+        # Check if our created log is in the response
+        log_found = False
+        for log in data:
+            if log["id"] == self.log_id:
+                log_found = True
+                break
+                
+        self.assertTrue(log_found, "Created log not found in response")
+        print(f"✅ Retrieved {len(data)} logs successfully")
+        
+    def test_04_update_log(self):
+        """Test updating a daily log"""
+        headers = {"Authorization": f"Bearer {self.token}"}
+        
+        # First, create a log to update
+        if not self.log_id:
+            self.test_02_create_daily_log()
+            
+        update_data = {
+            "date": date.today().isoformat(),
+            "tasks": [
+                {
+                    "description": "Updated Task 1",
+                    "time_spent": 3.0,
+                    "completed": True
+                },
+                {
+                    "description": "Updated Task 2",
+                    "time_spent": 2.0,
+                    "completed": True
+                }
+            ],
+            "total_time": 5.0,
+            "mood": 5,
+            "blockers": "Updated blockers"
+        }
+        
+        response = requests.put(f"{self.base_url}/logs/{self.log_id}", json=update_data, headers=headers)
+        self.assertEqual(response.status_code, 200, f"Update log failed: {response.text}")
+        
+        data = response.json()
+        self.assertEqual(data["id"], self.log_id, "Log ID mismatch")
+        self.assertEqual(data["mood"], 5, "Mood not updated")
+        self.assertEqual(data["total_time"], 5.0, "Total time not updated")
+        
+        print(f"✅ Log updated successfully: {self.log_id}")
+        
+    def test_05_manager_get_team_logs(self):
+        """Test manager retrieving team logs"""
+        headers = {"Authorization": f"Bearer {self.manager_token}"}
+        
+        response = requests.get(f"{self.base_url}/team/logs", headers=headers)
+        self.assertEqual(response.status_code, 200, f"Get team logs failed: {response.text}")
+        
+        data = response.json()
+        self.assertIsInstance(data, list, "Response is not a list")
+        
+        # Check if developer's log is in the response
+        dev_log_found = False
+        for log in data:
+            if log["user_id"] == self.user_id:
+                dev_log_found = True
+                break
+                
+        self.assertTrue(dev_log_found, "Developer's log not found in team logs")
+        print(f"✅ Manager retrieved team logs successfully")
+        
+    def test_06_manager_get_developers(self):
+        """Test manager retrieving team developers"""
+        headers = {"Authorization": f"Bearer {self.manager_token}"}
+        
+        response = requests.get(f"{self.base_url}/team/developers", headers=headers)
+        self.assertEqual(response.status_code, 200, f"Get team developers failed: {response.text}")
+        
+        data = response.json()
+        self.assertIsInstance(data, list, "Response is not a list")
+        
+        # Check if our developer is in the response
+        dev_found = False
+        for dev in data:
+            if dev["id"] == self.user_id:
+                dev_found = True
+                break
+                
+        self.assertTrue(dev_found, "Developer not found in team developers")
+        print(f"✅ Manager retrieved team developers successfully")
+        
+    def test_07_manager_add_feedback(self):
+        """Test manager adding feedback to a log"""
+        headers = {"Authorization": f"Bearer {self.manager_token}"}
+        
+        # First, ensure we have a log to add feedback to
+        if not self.log_id:
+            self.test_02_create_daily_log()
+            
+        feedback_data = {
+            "log_id": self.log_id,
+            "feedback_text": "Great work on the tasks! Keep it up."
+        }
+        
+        response = requests.post(f"{self.base_url}/feedback", json=feedback_data, headers=headers)
+        self.assertEqual(response.status_code, 200, f"Add feedback failed: {response.text}")
+        
+        data = response.json()
+        self.assertEqual(data["log_id"], self.log_id, "Log ID mismatch")
+        self.assertEqual(data["manager_id"], self.manager_id, "Manager ID mismatch")
+        
+        print(f"✅ Manager added feedback successfully")
+        
+    def test_08_get_notifications(self):
+        """Test retrieving notifications"""
+        headers = {"Authorization": f"Bearer {self.token}"}
+        
+        response = requests.get(f"{self.base_url}/notifications", headers=headers)
+        self.assertEqual(response.status_code, 200, f"Get notifications failed: {response.text}")
+        
+        data = response.json()
+        self.assertIsInstance(data, list, "Response is not a list")
+        
+        # We should have at least the welcome notification and feedback notification
+        self.assertGreaterEqual(len(data), 1, "No notifications returned")
+        
+        print(f"✅ Retrieved {len(data)} notifications successfully")
+        
+    def test_09_mark_notification_read(self):
+        """Test marking a notification as read"""
+        headers = {"Authorization": f"Bearer {self.token}"}
+        
+        # First, get notifications to find one to mark as read
+        response = requests.get(f"{self.base_url}/notifications", headers=headers)
+        self.assertEqual(response.status_code, 200, f"Get notifications failed: {response.text}")
+        
+        data = response.json()
+        if len(data) > 0:
+            notification_id = data[0]["id"]
+            
+            response = requests.put(f"{self.base_url}/notifications/{notification_id}/read", headers=headers)
+            self.assertEqual(response.status_code, 200, f"Mark notification read failed: {response.text}")
+            
+            # Verify it's marked as read
+            response = requests.get(f"{self.base_url}/notifications", headers=headers)
+            updated_data = response.json()
+            
+            notification_found = False
+            for notif in updated_data:
+                if notif["id"] == notification_id:
+                    notification_found = True
+                    self.assertTrue(notif["read"], "Notification not marked as read")
+                    break
+                    
+            self.assertTrue(notification_found, "Notification not found after update")
+            print(f"✅ Notification marked as read successfully")
+        else:
+            print("⚠️ No notifications to mark as read")
+            
+    def test_10_get_productivity_data(self):
+        """Test retrieving productivity data"""
+        headers = {"Authorization": f"Bearer {self.token}"}
+        
+        response = requests.get(f"{self.base_url}/analytics/productivity", headers=headers)
+        self.assertEqual(response.status_code, 200, f"Get productivity data failed: {response.text}")
+        
+        data = response.json()
+        self.assertIsInstance(data, list, "Response is not a list")
+        self.assertEqual(len(data), 30, "Expected 30 days of data")
+        
+        print(f"✅ Retrieved productivity data successfully")
+        
+    def test_11_export_data(self):
+        """Test exporting data as CSV"""
+        headers = {"Authorization": f"Bearer {self.token}"}
+        
+        start_date = (date.today() - timedelta(days=30)).isoformat()
+        end_date = date.today().isoformat()
+        
+        response = requests.get(
+            f"{self.base_url}/analytics/export?start_date={start_date}&end_date={end_date}", 
+            headers=headers
+        )
+        
+        # This might return 404 if no data in range, or 200 with CSV data
+        if response.status_code == 200:
+            data = response.json()
+            self.assertIn("csv_data", data, "CSV data not found in response")
+            print(f"✅ Exported data successfully")
+        elif response.status_code == 404:
+            print("⚠️ No data to export in date range")
+        else:
+            self.fail(f"Export data failed with status {response.status_code}: {response.text}")
+
+def run_tests():
+    # Create a test suite
+    suite = unittest.TestSuite()
+    
+    # Add tests in order
+    suite.addTest(DevLogAPITester('test_01_login'))
+    suite.addTest(DevLogAPITester('test_02_create_daily_log'))
+    suite.addTest(DevLogAPITester('test_03_get_logs'))
+    suite.addTest(DevLogAPITester('test_04_update_log'))
+    suite.addTest(DevLogAPITester('test_05_manager_get_team_logs'))
+    suite.addTest(DevLogAPITester('test_06_manager_get_developers'))
+    suite.addTest(DevLogAPITester('test_07_manager_add_feedback'))
+    suite.addTest(DevLogAPITester('test_08_get_notifications'))
+    suite.addTest(DevLogAPITester('test_09_mark_notification_read'))
+    suite.addTest(DevLogAPITester('test_10_get_productivity_data'))
+    suite.addTest(DevLogAPITester('test_11_export_data'))
+    
+    # Run the tests
+    runner = unittest.TextTestRunner(verbosity=2)
+    result = runner.run(suite)
+    
+    # Print summary
+    print("\n=== TEST SUMMARY ===")
+    print(f"Tests run: {result.testsRun}")
+    print(f"Failures: {len(result.failures)}")
+    print(f"Errors: {len(result.errors)}")
+    
+    if result.wasSuccessful():
+        print("✅ All API tests passed!")
+    else:
+        print("❌ Some API tests failed!")
+        
+    return result.wasSuccessful()
+
+if __name__ == "__main__":
+    run_tests()
