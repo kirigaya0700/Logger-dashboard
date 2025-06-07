@@ -71,7 +71,16 @@ function AuthProvider({ children }) {
       // Try to get notifications first to validate the token
       const response = await axios.get(`${API}/notifications`);
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
-      setUser(userData);
+      console.log('Loading user data from localStorage:', userData);
+      
+      // Ensure we have valid user data with a role
+      if (userData && userData.role) {
+        setUser(userData);
+        console.log('User role set to:', userData.role);
+      } else {
+        console.error('Invalid user data in localStorage:', userData);
+        logout();
+      }
     } catch (error) {
       console.error('Token validation failed:', error);
       logout();
