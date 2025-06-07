@@ -10,7 +10,7 @@ class DevLogAPITester(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up test data once for all tests"""
-        cls.base_url = "https://60e6f466-3bef-4be8-8d71-855eccd73665.preview.emergentagent.com/api"
+        cls.base_url = "https://036767ed-f0d6-4494-8214-45adc8d0656a.preview.emergentagent.com/api"
         
         # Generate unique usernames to avoid conflicts
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
