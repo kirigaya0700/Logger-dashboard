@@ -1093,6 +1093,9 @@ function App() {
 function AuthContent() {
   const { isAuthenticated, user } = useAuth();
 
+  // Debug logging
+  console.log('AuthContent - isAuthenticated:', isAuthenticated, 'user:', user);
+
   if (!isAuthenticated) {
     return <LoginForm />;
   }
