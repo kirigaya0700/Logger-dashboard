@@ -154,7 +154,7 @@ class DevLogAPITester(unittest.TestCase):
         self.assertEqual(response.status_code, 200, f"Create log failed: {response.text}")
         
         data = response.json()
-        self.log_id = data["id"]
+        self.__class__.log_id = data["id"]  # Store log_id at class level
         self.assertIsNotNone(self.log_id, "Log ID not found in response")
         self.assertEqual(data["user_id"], self.user_id, "User ID mismatch")
         self.assertEqual(len(data["tasks"]), 2, "Tasks count mismatch")
