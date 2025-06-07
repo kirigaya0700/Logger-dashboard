@@ -1143,8 +1143,12 @@ function AuthContent() {
             <Navigate to="/developer" replace />
           } 
         />
-        <Route path="/developer" element={<DeveloperDashboard />} />
-        <Route path="/manager" element={<ManagerDashboard />} />
+        <Route path="/developer" element={
+          user.role === 'developer' ? <DeveloperDashboard /> : <Navigate to="/manager" replace />
+        } />
+        <Route path="/manager" element={
+          user.role === 'manager' ? <ManagerDashboard /> : <Navigate to="/developer" replace />
+        } />
       </Routes>
     </Router>
   );
