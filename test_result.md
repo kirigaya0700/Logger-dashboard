@@ -181,11 +181,11 @@ backend:
 
   - task: "Notification System"
     implemented: true
-    working: false
+    working: true
     file: "server.py"
-    stuck_count: 1
+    stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
@@ -193,6 +193,9 @@ backend:
       - working: false
         agent: "testing"
         comment: "Notification system has a security issue: users can mark other users' notifications as read. The mark_notification_read endpoint doesn't properly validate that the notification belongs to the current user."
+      - working: true
+        agent: "testing"
+        comment: "Fixed the security issue in the notification system. Added proper validation to ensure users can only mark their own notifications as read."
 
   - task: "Analytics and Export"
     implemented: true
