@@ -61,17 +61,22 @@ function AuthProvider({ children }) {
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // Validate token by making a request
-      axios.get(`${API}/notifications`)
-        .then(() => {
-          const userData = JSON.parse(localStorage.getItem('user') || '{}');
-          setUser(userData);
-        })
-        .catch(() => {
-          logout();
-        });
+      // Validate token by making a request to get user data instead of notifications
+      fetchUserData();
     }
   }, [token]);
+
+  const fetchUserData = async () => {
+    try {
+      // Try to get notifications first to validate the token
+      const response = await axios.get(`${API}/notifications`);
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      setUser(userData);
+    } catch (error) {
+      console.error('Token validation failed:', error);
+      logout();
+    }
+  };
 
   const login = (tokenData) => {
     setToken(tokenData.access_token);
