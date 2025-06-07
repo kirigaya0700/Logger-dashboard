@@ -186,7 +186,7 @@ class DevLogAPITester(unittest.TestCase):
         """Test updating a daily log"""
         headers = {"Authorization": f"Bearer {self.token}"}
         
-        # First, create a log to update
+        # First, ensure we have a log to update
         if not self.log_id:
             self.test_02_create_daily_log()
             
