@@ -1,6 +1,9 @@
 import requests
 import unittest
 import json
+import random
+import string
+from datetime import datetime
 
 class DeveloperRegistrationTester(unittest.TestCase):
     """Test suite for Developer Registration and Role Assignment"""
@@ -9,10 +12,16 @@ class DeveloperRegistrationTester(unittest.TestCase):
         """Set up test data for each test"""
         self.base_url = "https://985d2939-72f1-42ea-a645-3d477bacf989.preview.emergentagent.com/api"
         
+        # Generate unique username and email to avoid conflicts
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+        unique_username = f"test_developer_{timestamp}_{random_suffix}"
+        unique_email = f"test_{timestamp}_{random_suffix}@test.com"
+        
         # Test user data
         self.test_user = {
-            "username": "test_developer_new",
-            "email": "test@test.com",
+            "username": unique_username,
+            "email": unique_email,
             "password": "TestPass123!",
             "role": "developer",
             "manager_id": ""  # Can be left empty as per requirements
