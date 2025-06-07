@@ -204,8 +204,14 @@ async def create_sample_data():
         }
         welcome_notifications.append(welcome_notification)
     
-    await db.notifications.insert_many(welcome_notifications + notifications)
-    print(f"✅ Created {len(notifications + welcome_notifications)} notifications")
+    # Insert notifications
+    all_notifications = welcome_notifications + notifications
+    if all_notifications:
+        try:
+            await db.notifications.insert_many(all_notifications, ordered=False)
+            print(f"✅ Created {len(all_notifications)} notifications")
+        except Exception as e:
+            print(f"⚠️ Some notifications may have been created (error: {str(e)[:100]}...)")
     
     print("\n🎉 Sample data creation completed!")
     print("\n📋 Login Credentials:")
