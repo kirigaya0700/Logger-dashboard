@@ -1103,12 +1103,31 @@ function App() {
 }
 
 function AuthContent() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
 
   // Debug logging
-  console.log('AuthContent - isAuthenticated:', isAuthenticated, 'user:', user);
+  console.log('AuthContent - isAuthenticated:', isAuthenticated, 'user:', user, 'loading:', loading);
+
+  // Show loading state while user data is being fetched
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
+    return <LoginForm />;
+  }
+
+  // Additional safety check - if we're authenticated but don't have user data, something is wrong
+  if (!user || !user.role) {
+    console.error('Authenticated but missing user data. Forcing logout.');
+    // This will trigger a logout
     return <LoginForm />;
   }
 
@@ -1119,7 +1138,7 @@ function AuthContent() {
         <Route 
           path="/" 
           element={
-            user?.role === 'manager' ? 
+            user.role === 'manager' ? 
             <Navigate to="/manager" replace /> : 
             <Navigate to="/developer" replace />
           } 
