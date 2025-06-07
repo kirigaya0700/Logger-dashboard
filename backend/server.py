@@ -292,6 +292,7 @@ async def update_daily_log(log_id: str, log_data: DailyLogCreate, current_user: 
     
     update_data = log_data.dict()
     update_data["updated_at"] = datetime.utcnow()
+    update_data["date"] = log_data.date.isoformat()  # Convert date to string for MongoDB
     
     await db.daily_logs.update_one({"id": log_id}, {"$set": update_data})
     
