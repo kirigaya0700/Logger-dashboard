@@ -197,20 +197,17 @@ backend:
         agent: "testing"
         comment: "Fixed the security issue in the notification system. Added proper validation to ensure users can only mark their own notifications as read."
 
-  - task: "Analytics and Export"
+  - task: "Developer Role Assignment"
     implemented: true
     working: true
     file: "server.py"
     stuck_count: 0
-    priority: "medium"
+    priority: "high"
     needs_retesting: false
     status_history:
       - working: true
-        agent: "main"
-        comment: "Productivity analytics endpoint and CSV export functionality implemented"
-      - working: true
         agent: "testing"
-        comment: "Analytics and export functionality tested successfully. Productivity data endpoint returns correct data with customizable date ranges. CSV export functionality works properly."
+        comment: "Tested developer registration flow with role assignment. Confirmed that the backend correctly sets and returns the role='developer' in both registration and login responses. Created test_developer_registration.py to verify this functionality. All tests passed successfully."
 
 frontend:
   - task: "Authentication UI"
